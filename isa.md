@@ -18,6 +18,8 @@
 | `sra.i` |Shift Right Arith | `rd = rs1 >> rs2` |
 | `slt.i` |Set Less Than | `rd = (rs1 < rs2)?1:0` |
 | `sltu.i` | Set Less Than (U) | `rd = (rs1 < rs2)?1:0` |
+| `mul.i` | Multiply | `rd = (rs1 * rs2)[31:0]` | 
+| `mov.i` | Move | `rd = rs1` | 
 | `addi.i` | ADD Immediate | `rd = rs1 + imm` | 
 | `xori.i` | XOR Immediate | `rd = rs1 ^ imm` |
 | `ori.i` | OR Immediate | `rd = rs1 OR imm` |
@@ -27,8 +29,15 @@
 | `srai.i` |Shift Right Arith Imm| `rd = rs1 >> imm[0:4]` |
 | `slti.i` |Set Less Than | `rd = (rs1 < imm)?1:0` |
 | `sltui.i` | Set Less Than Imm (U) | `rd = (rs1 < imm)?1:0` |
-| `ld.i` | Load x| `x` | 
-| `st.i` | Store x | `x` | 
+| `beq.i` |Branch == B | ` if(rs1 == rs2) PC += imm` |
+| `bne.i` |Branch != B | ` if(rs1 != rs2) PC += imm` |
+| `blt.i` |Branch < B  | `if(rs1 < rs2) PC += imm` |
+| `bge.i` |Branch ≥ B  | `if(rs1 >= rs2) PC += imm` |
+| `ld.i` | Load | `rd = M[rs1 + imm]` | 
+| `lui.i` | Load Upper Imm| `rd = imm << 12` | 
+| `st.i` | Store | `M[rs1 + imm] = rd` | 
+| `jal` | Jump And Link | `rd = PC+4; PC += imm` |
+| `jalr`| Jump And Link Reg | `rd = PC+4; PC = rs1 + imm`|
 
 ## Matrix Instructions
 | Instr | Name | Description | 
@@ -40,6 +49,7 @@
 ## Psuedo-instructions
 | Instr | Description | 
 | ----- | ----------- | 
-| `PUSH` | `x` | 
-| `POP` | `x` | 
-| `NOP` | `x` | 
+| `PUSH` | | 
+| `POP` | | 
+| `NOP` | | 
+| `HALT` | |
