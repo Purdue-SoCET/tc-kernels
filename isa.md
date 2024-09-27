@@ -7,8 +7,8 @@
 
 ```
 ld.m m0, [r1]
-mm.m m0, m1, m2, m3
-st.m
+mm.m m3, m1, m2, m0
+st.m m0, [r1]
 ```
 
 ### Lists
