@@ -47,12 +47,12 @@
 | `gemm.m` | M | Matrix Multiply | `md = ma @ mb + mc` | 
 
 ## Psuedo-instructions
-| Instr | Description | 
-| ----- | ----------- | 
-| `PUSH` | | 
-| `POP` | | 
-| `NOP` | | 
-| `HALT` | |
+| Instr | Description | Pseudo Instruction |
+| ----- | ----------- | ----------|
+| `PUSH` | `sub + sw`|`sp = sp - 4; M[sp] <= R[rs1]`| 
+| `POP` | `add + lw`|`sp = sp + 4; R[rs2] <= M[sp]`| 
+| `NOP` | no operation|`addi.i x0, x0, 0`| 
+| `HALT` | halt|`halt`|
 
 ## Instruction Formats
 <table>
