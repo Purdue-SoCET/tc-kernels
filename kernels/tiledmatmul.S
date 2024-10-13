@@ -37,17 +37,17 @@ ld.m m3, x12        // Load partial sum for column
 addi.i, x12, x12, 8 // Find address of next partial sum from result memory
 gemm.m m3, m1, m2, m3 
 st.m m3, x12        // Save new partial sum back to result memory
-add.i x11, x11, 8   // Move x11 to next column of input matrix
+addi.i x11, x11, 8  // Move x11 to next column of input matrix
 addi.i x6, x6, 1 
 bne x6, x9, Loop_column 
 
-add.i x10, x10, 8   // Move x10 next column of weight matrix 
+addi.i x10, x10, 8  // Move x10 next column of weight matrix 
 add.i x11, x11, x22 // Move x11 to [row + 1, 0] of input matrix 
 addi.i x5, x5, 1 
 bne x5, x8, Loop_term_idx 
 
                     // Result row is done
-addi.i x12, x23     // Find address to save next completed row 
+add.i x12, x12, x23 // Find address to save next completed row 
 add.i x10, x10, x21 // Move x10 to [row + 1, 0] of weight matrix 
 addi.i x4, x4, 1 
 bne x4, x7, Loop_row 
