@@ -16,11 +16,6 @@ mul.i x22, x22, 4   // x sys. arr. height
 mul.i x22, x22, 3   // x sys. arr. width - 1
 mul.i x22, x22, x9  // x m = memory offset to go down row in input matrix
 
-ldi.i x23, 2        //   Number of bytes in an element
-mul.i x23, x23, 4   // x sys. arr. height
-mul.i x23, x23, 3   // x sys. arr. width - 1
-mul.i x23, x23, x9  // x m = memory offset for output matrix tile [row (row 1), 0] -> [row + 1, 0]
-
 ldi.i x4, 0         // Temp result tile row = temp weight tile row = 0 
 
 Loop_row:  
@@ -47,7 +42,7 @@ addi.i x5, x5, 1
 bne x5, x8, Loop_term_idx 
 
                     // Result row is done
-add.i x12, x12, x23 // Find address to save next completed row 
+add.i x12, x12, x22 // Find address to save next completed row 
 add.i x10, x10, x21 // Move x10 to [row + 1, 0] of weight matrix 
 addi.i x4, x4, 1 
 bne x4, x7, Loop_row 
