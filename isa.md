@@ -33,9 +33,9 @@
 | `bne.i` | B | Branch != B | ` if(rs1 != rs2) PC += imm` |
 | `blt.i` | B | Branch < B  | `if(rs1 < rs2) PC += imm` |
 | `bge.i` | B | Branch ≥ B  | `if(rs1 >= rs2) PC += imm` |
-| `ld.i` | I | Load Word | `rd = M[rs1 + imm]` | 
+| `lw.i` | I | Load Word | `rd = M[rs1 + imm]` | 
 | `lui.i` | U | Load Upper Imm| `rd = imm << 12` | 
-| `st.i` | S | Store Word | `M[rs1 + imm] = rd` | 
+| `sw.i` | S | Store Word | `M[rs1 + imm] = rd` | 
 | `jal` | UJ | Jump And Link | `rd = PC+4; PC += imm` |
 | `jalr`| I | Jump And Link Reg | `rd = PC+4; PC = rs1 + imm`|
 
@@ -47,12 +47,15 @@
 | `gemm.m` | M | Matrix Multiply | `md = ma @ mb + mc` | 
 
 ## Psuedo-instructions
-| Instr | Description | Pseudo Instruction |
-| ----- | ----------- | ----------|
-| `PUSH` | `sub + sw`|`sp = sp - 4; M[sp] <= R[rs1]`| 
-| `POP` | `add + lw`|`sp = sp + 4; R[rs2] <= M[sp]`| 
-| `NOP` | no operation|`addi.i x0, x0, 0`| 
-| `HALT` | halt|`halt`|
+| Instr | Name | Description | Uses |
+| ----- | ---- | ----------- | ---- | 
+|`li`|Load Immediate|`R[rd] = imm`| `lui.i + addi.i` |
+|`mv`|Move|`R[rd] = R[rs1]`| `addi.i` |
+|`ret`|Return|`PC = R[1]`| `jalr` |
+| `PUSH` | Stack push |`sp = sp - 4; M[sp] <= R[rs1]`| `sub.i + sw.i`|
+| `POP` | Stack pop |`sp = sp + 4; R[rs2] <= M[sp]`| `add.i + lw.i` |
+| `NOP` | No operation||`addi.i`| 
+| `HALT` | halt| |
 
 ## Instruction Formats
 <table>
