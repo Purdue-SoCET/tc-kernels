@@ -29,10 +29,10 @@ srli.i x8, x8, 8       // Right value only in right spot
 and.i x5, x5, x7       // x5 now stores 0 if left > 0
 and.i x6, x6, x8       // x6 now stores 0 if right > 0
 beq x5, x0, positive_left 
-andi.i x7, x7, 0x0088  // Left value becomes 0
+andi.i x7, x7, 0x00FF  // Left value becomes 0
 positive_left:
 beq x6, x0, positive_right
-andi.i x8, x8, 0x8800  // Right value becomes 0
+andi.i x8, x8, 0xFF00  // Right value becomes 0
 positive_right:
 or.i x7, x7, x8        // Concatenate left and right values
 st.i x7, 0(x9)         // Write ReLU(left | right) to memory
