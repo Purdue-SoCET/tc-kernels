@@ -17,10 +17,10 @@ jal x1, tiledmatmul
 mv.i x9, x12           // Move result address
 
 relu_loop:
-ldi.i x4, 0            // Counter i in [0, n - 1]
-ldi.i x5, 0x8000       // Left FP16 sign mask
-ldi.i x6, 0x0080       // Right FP16 sign mask
-ld.i x7, 0(x9)         // Load 2 FP16 values [left, right]
+li.i x4, 0             // Counter i in [0, n - 1]
+li.i x6, 0x0080        // Right FP16 sign mask
+slli.i x5, 8           // Left FP16 sign mask
+lw.i x7, 0(x9)         // Load 2 FP16 values [left, right]
 mv.i x8, x7            // Copy both
 srli.i x7, x7, 8    
 slli.i x7, x7, 8       // Left value only in left spot
@@ -32,10 +32,12 @@ beq x5, x0, positive_left
 andi.i x7, x7, 0x00FF  // Left value becomes 0
 positive_left:
 beq x6, x0, positive_right
-andi.i x8, x8, 0xFF00  // Right value becomes 0
+li.i x6, 0x00FF
+slli.i x6, x6, 8
+and.i x8, x8, x6       // Right value becomes 0
 positive_right:
 or.i x7, x7, x8        // Concatenate left and right values
-st.i x7, 0(x9)         // Write ReLU(left | right) to memory
+sw.i x7, 0(x9)         // Write ReLU(left | right) to memory
 addi.i x9, 4
 addi.i x4, x4, 1
 bne x4, x13, relu_loop
