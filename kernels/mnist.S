@@ -9,6 +9,8 @@ addi.i x13, x0, 16
 addi.i x14, x0, 768
 addi.i x15, x0, 1
 
+PUSH x12               // Modified by tiledmatmul, so needs to be saved to stack
+
 jal x1, tiledmatmul
 
 // ReLU(A1) -> X1(16, 1)
@@ -41,12 +43,12 @@ bne x4, x13, relu_loop
 // W2(10, 16) x X1(16, 1) -> A2(10, 1)
 // Assume W2 address is stored in x16
 // Assume A2 address is stored in x17, preloaded with B2
-
+POP x12
 mv.i x10, x16          // W2 address is now in weight address
 mv.i x11, x12          // X1 address is now in input address
 mv.i x12, x17          // A2 address is now in result address
 addi.i x13, x0, 10     // n = 10
-addi.i x14, x0, 16     // k = 16
+addi.i x14, x0, 16     // k = 16, m is still 1
 
 jal x1, tiledmatmul
 
