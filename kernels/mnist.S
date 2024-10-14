@@ -1,40 +1,53 @@
 mnist: 
-//Assume fully connected network, 784 input size, hidden layer 16, output 10
+// MLP, 784 input size, hidden layer size 16, output size 10
 
-// W1(16 ,768) x X(768, 1) -> A1(16, 1)
-// Weight address, input address, result address, (n = 16, k = 768, m = 1) needed for tiled matrix mult.
-// Assume weight address, input address, result address are on the stack
-POP x3      // W1 address
-POP x4      // Input address
-POP x5      // A1 address
-// In reverse order as read in tiledmatmult: 
-ldi x6, 1
-PUSH x6     // m
-ldi x6, 768
-PUSH x6     // k
-ldi x6, 16
-PUSH x6     // n
-PUSH x5     // A1 address
-PUSH x4     // Input address
-PUSH x3     // W1 address
-beq x0, x0, tiledmatmul
+// W1(16 ,768) x I(768, 1) + B1(16, 1) -> A1(16, 1)
+// W1 address, I address, A1 address, (n = 16, k = 768, m = 1) needed for tiled matrix mult.
+// Assume addresses are passed as function parameters in x10-x12 according to tiledmatmul in this order
+// B1 is stored in result memory for accumulator preloading
+addi.i x13, x0, 16
+addi.i x14, x0, 768
+addi.i x15, x0, 1
 
-// A1(16, 1) + B1(16, 1) -> C1
-mov x7, x5 // Pointer to A1 temp value
-POP x8     // Pointer to B1 temp value
-ldi x9, 0  // Index count
-Loop_b1: 
-ld x10, x7
-ld x11, x9
-fp_add x11, x10, x10 // Floating point addition??
-st x11, ?? //C1 address
-addi x8, x8, 1
-beq x8, x6, Loop_b1
+jal x1, tiledmatmul
 
-// ReLU(C1) -> X2(16, 1)
+// ReLU(A1) -> X1(16, 1)
+mv.i x9, x12           // Move result address
 
-// W2(10, 16) x X2(16, 1) -> A2(10, 1)
+relu_loop:
+ldi.i x4, 0            // Counter i in [0, n - 1]
+ldi.i x5, 0x8000       // Left FP16 sign mask
+ldi.i x6, 0x0080       // Right FP16 sign mask
+ld.i x7, 0(x9)         // Load 2 FP16 values [left, right]
+mv.i x8, x7            // Copy both
+srli.i x7, x7, 8    
+slli.i x7, x7, 8       // Left value only in left spot
+slli.i x8, x8, 8    
+srli.i x8, x8, 8       // Right value only in right spot
+and.i x5, x5, x7       // x5 now stores 0 if left > 0
+and.i x6, x6, x8       // x6 now stores 0 if right > 0
+beq x5, x0, positive_left 
+andi.i x7, x7, 0x0088  // Left value becomes 0
+positive_left:
+beq x6, x0, positive_right
+andi.i x8, x8, 0x8800  // Right value becomes 0
+positive_right:
+or.i x7, x7, x8        // Concatenate left and right values
+st.i x7, 0(x9)         // Write ReLU(left | right) to memory
+addi.i x9, 4
+addi.i x4, x4, 1
+bne x4, x13, relu_loop
 
-// A2+(10, 1) + B2(10, 1) -> C2
+// W2(10, 16) x X1(16, 1) -> A2(10, 1)
+// Assume W2 address is stored in x16
+// Assume A2 address is stored in x17, preloaded with B2
 
-// ReLU(C2) -> Result
+mv.i x10, x16          // W2 address is now in weight address
+mv.i x11, x12          // X1 address is now in input address
+mv.i x12, x17          // A2 address is now in result address
+addi.i x13, x0, 10     // n = 10
+addi.i x14, x0, 16     // k = 16
+
+jal x1, tiledmatmul
+
+ret
