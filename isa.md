@@ -19,7 +19,7 @@
 | `slt.i` | R | Set Less Than | `rd = (rs1 < rs2)?1:0` |
 | `sltu.i` | R | Set Less Than (U) | `rd = (rs1 < rs2)?1:0` |
 | `mul.i` | R | Multiply | `rd = (rs1 * rs2)[31:0]` | 
-| `mov.i` | R | Move | `rd = rs1` | 
+| `mov.i` | R | Move | `rd = rs1` !NOT IN RISCV SPEC! | 
 | `addi.i` | I | ADD Immediate | `rd = rs1 + imm` | 
 | `xori.i` | I | XOR Immediate | `rd = rs1 ^ imm` |
 | `ori.i` | I | OR Immediate | `rd = rs1 OR imm` |
@@ -40,8 +40,8 @@
 | `jalr`| I | Jump And Link Reg | `rd = PC+4; PC = rs1 + imm`|
 
 ## Matrix Instructions
-| Instr | Name | Description | 
-| ----- | ---- | ----------- | 
+| Instr | Type | Name | Description
+| ----- |---- | ----------- | 
 | `ld.m` | M | Load Matrix | `md = M[rs1]` | 
 | `st.m` | M | Store Matrix | `M[rs1] = md` | 
 | `gemm.m` | M | Matrix Multiply | `md = ma @ mb + mc` | 
@@ -49,9 +49,9 @@
 ## Psuedo-instructions
 | Instr | Name | Description | Uses |
 | ----- | ---- | ----------- | ---- | 
-|`li`|Load Immediate|`R[rd] = imm`| `lui.i + addi.i` |
-|`mv`|Move|`R[rd] = R[rs1]`| `addi.i` |
-|`ret`|Return|`PC = R[1]`| `jalr` |
+|`LI`|Load Immediate|`R[rd] = imm`| `lui.i + addi.i` |
+|`MV`|Move|`R[rd] = R[rs1]`| `addi.i` |
+|`RET`|Return|`PC = R[1]`| `jalr` |
 | `PUSH` | Stack push |`sp = sp - 4; M[sp] <= R[rs1]`| `sub.i + sw.i`|
 | `POP` | Stack pop |`sp = sp + 4; R[rs2] <= M[sp]`| `add.i + lw.i` |
 | `NOP` | No operation||`addi.i`| 
@@ -135,6 +135,7 @@
         <td><code>rc</code></td>
         <td>reserved</td>
         <td><code>opcode </code></td>
+        <td><strong>meaningless register names</strong></td>
     </tr>
 </table>
 
