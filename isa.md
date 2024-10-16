@@ -19,7 +19,7 @@
 | `slt.i` | R | Set Less Than | `rd = (rs1 < rs2)?1:0` |
 | `sltu.i` | R | Set Less Than (U) | `rd = (rs1 < rs2)?1:0` |
 | `mul.i` | R | Multiply | `rd = (rs1 * rs2)[31:0]` | 
-| `mov.i` | R | Move | `rd = rs1` | 
+| `mov.i` | R | Move | `rd = rs1` !NOT IN RISCV SPEC! | 
 | `addi.i` | I | ADD Immediate | `rd = rs1 + imm` | 
 | `xori.i` | I | XOR Immediate | `rd = rs1 ^ imm` |
 | `ori.i` | I | OR Immediate | `rd = rs1 OR imm` |
@@ -33,15 +33,15 @@
 | `bne.i` | B | Branch != B | ` if(rs1 != rs2) PC += imm` |
 | `blt.i` | B | Branch < B  | `if(rs1 < rs2) PC += imm` |
 | `bge.i` | B | Branch ≥ B  | `if(rs1 >= rs2) PC += imm` |
-| `ld.i` | I | Load Word | `rd = M[rs1 + imm]` | 
+| `lw.i` | I | Load Word | `rd = M[rs1 + imm]` (LW in RISCV Spec) | 
 | `lui.i` | U | Load Upper Imm| `rd = imm << 12` | 
-| `st.i` | S | Store Word | `M[rs1 + imm] = rd` | 
+| `sw.i` | S | Store Word | `M[rs1 + imm] = rd` (SW in RISCV Spec) | 
 | `jal` | UJ | Jump And Link | `rd = PC+4; PC += imm` |
 | `jalr`| I | Jump And Link Reg | `rd = PC+4; PC = rs1 + imm`|
 
 ## Matrix Instructions
-| Instr | Name | Description | 
-| ----- | ---- | ----------- | 
+| Instr | Type | Name | Description
+| ----- |---- | ----------- | 
 | `ld.m` | M | Load Matrix | `md = M[rs1]` | 
 | `st.m` | M | Store Matrix | `M[rs1] = md` | 
 | `gemm.m` | M | Matrix Multiply | `md = ma @ mb + mc` | 
@@ -51,8 +51,10 @@
 | ----- | ----------- | ----------|
 | `PUSH` | `sub + sw`|`sp = sp - 4; M[sp] <= R[rs1]`| 
 | `POP` | `add + lw`|`sp = sp + 4; R[rs2] <= M[sp]`| 
-| `NOP` | no operation|`addi.i x0, x0, 0`| 
-| `HALT` | halt|`halt`|
+| `NOP` | no operation| `addi.i x0, x0, 0` | 
+| `MV.i` | `addi` | `R[rd] <= R[rs1]` |
+| `LI.i` | `lui + addi` | `R[rd] <= imm` |
+| `HALT` | halt |`halt`|
 
 ## Instruction Formats
 <table>
@@ -132,6 +134,7 @@
         <td><code>rc</code></td>
         <td>reserved</td>
         <td><code>opcode </code></td>
+        <td><strong>meaningless register names</strong></td>
     </tr>
 </table>
 
