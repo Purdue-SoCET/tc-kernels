@@ -8,7 +8,7 @@ opcode_map = {
     "slli.i": 0x13, "srli.i": 0x13, "srai.i": 0x13, "slti.i": 0x13, "sltui.i": 0x13,
     "ld.i": 0x03, "st.i": 0x23, "beq.i": 0x63, "bne.i": 0x63, "blt.i": 0x63, "bge.i": 0x63,
     "jal": 0x6F, "jalr": 0x67, "lui.i": 0x37,
-    "ld.m": 0x43, "st.m": 0x63, "gemm.m": 0x73 #based on the remaining opcodes after riscv-i
+    "ld.m": 0x43, "st.m": 0x53, "gemm.m": 0x73 #based on the remaining opcodes after riscv-i
 }
 
 register_map = {
