@@ -1,4 +1,4 @@
-mnist: 
+mnist:
 // MLP, 784 input size, hidden layer size 16, output size 10
 
 // W1(16 ,768) x I(768, 1) + B1(16, 1) -> A1(16, 1)

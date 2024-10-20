@@ -1,12 +1,14 @@
 import struct
 import sys
+import re
+from typing import Dict
 
 opcode_map = {
     "add.i": 0x33, "sub.i": 0x33, "xor.i": 0x33, "or.i": 0x33, "and.i": 0x33,
     "sll.i": 0x33, "srl.i": 0x33, "sra.i": 0x33, "slt.i": 0x33, "sltu.i": 0x33, "mul.i": 0x33, "mov.i": 0x33,
     "addi.i": 0x13, "xori.i": 0x13, "ori.i": 0x13, "andi.i": 0x13,
     "slli.i": 0x13, "srli.i": 0x13, "srai.i": 0x13, "slti.i": 0x13, "sltui.i": 0x13,
-    "ld.i": 0x03, "st.i": 0x23, "beq.i": 0x63, "bne.i": 0x63, "blt.i": 0x63, "bge.i": 0x63,
+    "lw.i": 0x03, "sw.i": 0x23, "beq.i": 0x63, "bne.i": 0x63, "blt.i": 0x63, "bge.i": 0x63,
     "jal": 0x6F, "jalr": 0x67, "lui.i": 0x37,
     "ld.m": 0x43, "st.m": 0x53, "gemm.m": 0x73 #based on the remaining opcodes after riscv-i
 }
@@ -41,7 +43,7 @@ def parse_file(filename):
     with open(filename, 'r') as file:
         for line in file:
             #Removing comments and empty lines
-            line = line.split('#')[0].strip()
+            line = line.split('//')[0].strip()
             if not line:
                 continue
             instructions.append(line)
@@ -113,7 +115,12 @@ def encode_uj_type(opcode, rd, imm):
     machine_code = (imm_20 << 31) | (imm_19_12 << 12) | (imm_11 << 20) | (imm_10_1 << 21) | (rd_bin << 7) | opcode
     return machine_code
 
-def encode_m_type(opcode, rd, ra, rb, rc):
+def encode_m_type(opcode, rd, rs1, rs2, imm):
+
+    machine_code = encode_i_type("addi.i", 0, 0, 0, 0)
+    return machine_code
+
+def encode_mm_type(opcode, rd, ra, rb, rc):
     rd_bin = get_register_binary(rd)
     ra_bin = get_register_binary(ra)
     rb_bin = get_register_binary(rb)
@@ -122,10 +129,10 @@ def encode_m_type(opcode, rd, ra, rb, rc):
     machine_code = (rd_bin << 28) | (ra_bin << 24) | (rb_bin << 20) | (rc_bin << 16) | opcode
     return machine_code
 
-def handle_instruction(instruction):
+def handle_instruction(instruction, label_map):
     parts = instruction.split()
     instr = parts[0]
-
+    print("assembling instruction: ", instruction)
     if instr in ["add.i", "sub.i", "xor.i", "or.i", "and.i", "sll.i", "srl.i", "sra.i", "slt.i", "sltu.i", "mul.i", "mov.i"]:
         rd, rs1, rs2 = parts[1].strip(','), parts[2].strip(','), parts[3]
         funct3, funct7 = 0, 0 
@@ -143,7 +150,7 @@ def handle_instruction(instruction):
         elif instr == "mov.i": funct3, funct7 = 0x0, 0x00
         return [encode_r_type(opcode_map[instr], funct3, funct7, rd, rs1, rs2)]
 
-    elif instr in ["addi.i", "xori.i", "ori.i", "andi.i", "slli.i", "srli.i", "srai.i", "slti.i", "sltui.i", "ld.i", "jalr"]:
+    elif instr in ["addi.i", "xori.i", "ori.i", "andi.i", "slli.i", "srli.i", "srai.i", "slti.i", "sltui.i", "jalr"]:
         rd, rs1, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3])
         funct3 = 0 
         if instr == "addi.i": funct3 = 0x0
@@ -155,7 +162,6 @@ def handle_instruction(instruction):
         elif instr == "srai.i": funct3 = 0x5
         elif instr == "slti.i": funct3 = 0x2
         elif instr == "sltui.i": funct3 = 0x3
-        elif instr == "ld.i": funct3 = 0x2
         elif instr == "jalr": funct3 = 0x0
         return [encode_i_type(opcode_map[instr], funct3, rd, rs1, imm)]
 
@@ -163,6 +169,12 @@ def handle_instruction(instruction):
         rs1, rs2, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3])
         funct3 = 0x2
         return [encode_s_type(opcode_map[instr], funct3, rs1, rs2, imm)]
+    
+    elif instr == "lw.i":
+        match = re.search(r'lw.i x(P?<rs1>\d+), (P?<imm>\d+)\[x(P?<rs2>\d+)\]', instruction)
+        rs1, rs2, imm = match.groups("rs1"), match.groups("rs2"), match.groups("imm")
+        funct3 = 0x2
+        return [encode_i_type(opcode_map[instr], funct3, rd, rs1, imm)]
 
     elif instr in ["beq.i", "bne.i", "blt.i", "bge.i"]:
         rs1, rs2, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3])
@@ -173,7 +185,6 @@ def handle_instruction(instruction):
         elif instr == "bge.i": funct3 = 0x5
         return [encode_b_type(opcode_map[instr], funct3, rs1, rs2, imm)]
 
-    
     elif instr == "lui.i":
         rd, imm = parts[1].strip(','), int(parts[2])
         return [encode_u_type(opcode_map[instr], rd, imm)]
@@ -182,17 +193,26 @@ def handle_instruction(instruction):
         rd, imm = parts[1].strip(','), int(parts[2])
         return [encode_uj_type(opcode_map[instr], rd, imm)]
 
+    elif instr in {"ld.m", "st.m"}:
+        match = re.search(r'm(P?<rd>\d+), x(P?<rs1>\d+), (P?<imm>\d+)\[x(P?<rs2>\d+)\]', instruction)
+        encode_m_type(opcode_map[instr], match.groups(rd), match.groups(rs1), match.groups(rs2), match.groups(imm))
+
     elif instr in ["ld.m", "st.m", "gemm.m"]:
         rd, ra, rb, rc = parts[1].strip(','), parts[2].strip(','), parts[3].strip(','), parts[4]
-        return [encode_m_type(opcode_map[instr], rd, ra, rb, rc)]
+        return [encode_mm_type(opcode_map[instr], rd, ra, rb, rc)]
 
     return [0]
 
-def assemble_instructions(instructions):
+def assemble_instructions(instructions, label_map: Dict[int, str]):
     machine_codes = []
-    for instr in instructions:
-        codes = handle_instruction(instr)
-        machine_codes.extend(codes)
+    for i,instr in enumerate(instructions):
+        try:
+            codes = handle_instruction(instr, label_map)
+            machine_codes.extend(codes)
+        except Exception as e:
+            print(f"\033[91mException on line {i}:\033[0m")
+            raise e
+            
     return machine_codes
 
 def write_machine_code(filename, machine_codes):
@@ -202,7 +222,23 @@ def write_machine_code(filename, machine_codes):
 
 def assemble_file(input_file, output_file):
     instructions = parse_file(input_file)
-    machine_codes = assemble_instructions(instructions)
+    # clean out aesthetic lines
+    instructions = [i for i in instructions if any(i.find(op) >= 0 for op in opcode_map) or ":" in i]
+    instructions = [i[:i.find("//")] if i.find("//") >= 0 else i for i in instructions]
+    # expand pseudo instructions
+
+    # build label map
+    _instructions = []
+    label_map = {}
+    for i in instructions:
+        i = i.strip()
+        if ":" in i: label_map[i[:i.find("//")]] = len(_instructions)
+        else: _instructions.append(i)
+    # replace labels
+    __instructions = _instructions
+    for l in label_map: [i.replace(l, f"{label_map[l]}") for i in __instructions]
+    # assemble instructions
+    machine_codes = assemble_instructions(__instructions, label_map)
     write_machine_code(output_file, machine_codes)
     print(f"Machine code written to {output_file}.")
 

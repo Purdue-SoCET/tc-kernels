@@ -32,13 +32,13 @@ mv.i x11, x18       // Reset x11 to [0, 0] of input matrix
 Loop_term_idx:  
 li.i x6, 0         // Result tile column = 0 
 mv.i x12, x19       // Reset x12 to [row, 0] of result matrix
-ld.m m1, x10        // Load new weight tile 
+ld.m m1, x21, 0[x10]        // Load new weight tile 
 
 Loop_column: 
-ld.m m2, x11        // Load new input tile 
-ld.m m3, x12        // Load partial sum for column 
+ld.m m2, x22, 0[x11]        // Load new input tile 
+ld.m m3, x23, 0[x12]        // Load partial sum for column 
 gemm.m m3, m1, m2, m3 
-st.m m3, x12        // Save new partial sum back to result memory
+st.m m3, x32, x12        // Save new partial sum back to result memory
 addi.i x11, x11, 8  // Move x11 to next column of input matrix
 addi.i x12, x12, 8  // Find address of next partial sum from result memory
 addi.i x6, x6, 1 
