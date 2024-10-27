@@ -61,6 +61,7 @@ class AluOp(Enum):
     SLL = auto()
     SRL = auto()
     SLT = auto()
+    SRA = auto()
 
 alu_funct = {
     AluOp.NOP: lambda a, b: a,
@@ -72,6 +73,7 @@ alu_funct = {
     AluOp.SLL: lambda a,b: a << b,
     AluOp.SRL: lambda a,b: a >> b,
     AluOp.SLT: lambda a,b: a < b,
+    AluOp.SRA: lambda a,b: (a >> b) | ((a >= 0) & (-1 << (32 - a))),
 }
 
 rfunct = {

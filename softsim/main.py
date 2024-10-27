@@ -1,7 +1,7 @@
 import numpy as np
 import argparse
 from helpers import tobits, frombits
-from opcode import Instruction, Opcode, AluOp, opcodes, rfunct, ifunct, bfunct, alu_funct, branch_funct
+from opcode import Opcode, AluOp, opcodes, rfunct, ifunct, bfunct, alu_funct, branch_funct
 
 # classes
 
@@ -16,7 +16,7 @@ class Instruction:
         self.opcode = op
     
     @staticmethod
-    def decode(instruction: bytes) -> Instruction:
+    def decode(instruction: bytes):
         assert len(instruction) == 4, "instructions should be four bytes!"
         bits = tobits(instruction)
         opcode = opcodes[frombits(bits[0:6])]
