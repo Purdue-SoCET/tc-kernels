@@ -19,9 +19,11 @@ class Instruction:
     def decode(instruction: bytes):
         assert len(instruction) == 4, "instructions should be four bytes!"
         bits = tobits(instruction)
+        # print("Bits: ", bits)
         opcode = opcodes[frombits(bits[0:6])]
         instr = Instruction(opcode)
         if opcode is Opcode.RTYPE or opcode is Opcode.MUL:
+            instr.use_imm = False
             instr.rd = frombits(bits[7:11])
             instr.rs1 = frombits(bits[15:19])
             instr.rs2 = frombits(bits[20:24])
@@ -79,12 +81,16 @@ class Core:
         with open(self.memfile, "rb") as f:
             self.memory = f.read()
             f.close()
-        self.scalar_regs = np.zeros(32)
-        self.matrix_regs = np.zeros(32, 8, 8)
+        self.scalar_regs = np.zeros(32, dtype=np.int32)
+        self.matrix_regs = np.zeros((32, 8, 8),  dtype=np.int32)
+
+        self.cr = cr
+        # print("Memory", self.memory)
     
     def run(self):
-        cr = self.load_cr()
-        self._run()
+        #cr = self.load_cr()
+        cr = self.cr
+        self._run(cr)
         if self.halted: print("exited gracefully.")
         else:
             assert False, "did not halt gracefully"
@@ -92,10 +98,14 @@ class Core:
     # read & write a word (byte addressed)
     def memwrite(self, addr: int, data):
         assert addr % 4 == 0, "tried to write to a misaligned address"
-        self.memory[addr:addr+3] = data
+        # self.memory[addr:addr+3] = data
+        self.memory[addr:addr+4] = data
+
     def memread(self, addr: int) -> bytes:
         assert addr % 4 == 0, "tried to read from a misaligned address"
-        return self.memory[addr:addr+3]
+        # return self.memory[addr:addr+3]
+        return self.memory[addr:addr+4]
+
     
     def _run(self, cr: ControlRegister, max_iters=10000):
         # initialize registers
@@ -105,8 +115,14 @@ class Core:
         iter = 0
         while iter < max_iters:
             instruction_word = self.memread(self.pc)
+            # print("Instr Word: ", instruction_word)
+            if (instruction_word == b''):
+                print("End of program")
+                self.halted = True
+                return
             i = Instruction.decode(instruction_word)
             res = self.scalar_alu(i)
+            print("Res: ", res)
             
             # Arithmetic
             if i.opcode is Opcode.RTYPE or Opcode.ITYPE:
@@ -149,8 +165,23 @@ class Core:
         op2 =  i.imm if i.use_imm else self.scalar_regs[i.rs2]
         out = alu_funct[i.aluop](op1,op2)
         return out
-        
-        
-        
 
+    def print_scalar_regs(self):
+        s = ""
+        for i, n in enumerate(self.scalar_regs):
+            s += f"x{str(i).zfill(2)}| {str(n).ljust(9, ' ')}     "
+            if not (i+1) % 4:
+                print(s)
+                s = ""
+        print()
         
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--file', type=str, required=True)
+    args=parser.parse_args()
+    filename = args.file
+    print("Running file", filename)
+    cr = ControlRegister(0, 0)
+    core = Core(filename, cr)
+    core.run()
+    core.print_scalar_regs()
