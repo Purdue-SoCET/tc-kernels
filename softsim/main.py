@@ -14,63 +14,65 @@ class Instruction:
     
     def __init__(self, op: Opcode):
         self.opcode = op
+        self.use_imm = False
     
     @staticmethod
     def decode(instruction: bytes):
         assert len(instruction) == 4, "instructions should be four bytes!"
         bits = tobits(instruction)
+
+        def bit_range(a, b = None):
+            if b is None: b = a
+            return bits[a: b + 1]
+
         # print("Bits: ", bits)
-        opcode = opcodes[frombits(bits[0:6])]
+        opcode = opcodes[frombits(bit_range(0,6))]
         instr = Instruction(opcode)
         if opcode is Opcode.RTYPE or opcode is Opcode.MUL:
-            instr.use_imm = False
-            instr.rd = frombits(bits[7:11])
-            instr.rs1 = frombits(bits[15:19])
-            instr.rs2 = frombits(bits[20:24])
+            instr.rd = frombits(bit_range(7,11))
+            instr.rs1 = frombits(bit_range(15,19))
+            instr.rs2 = frombits(bit_range(20,24))
             # funct7 ++ funct3
-            instr.aluop = rfunct[frombits(bits[25:31] + bits[12:14])]
+            instr.aluop = rfunct[frombits(bit_range(25,31) + bit_range(12,14))]
             return instr
         if opcode is Opcode.ITYPE or opcode is Opcode.LD:
             instr.use_imm = True
-            instr.rd = frombits(bits[7:11])
-            instr.rs1 = frombits(bits[15:19])
-            instr.imm = frombits(bits[20:31])
-            print("bits", bits[12:14])
-            print("bits", bits[12:14 + 1])
-            instr.aluop = ifunct[frombits(bits[12:14 + 1])]
+            instr.rd = frombits(bit_range(7,11))
+            instr.rs1 = frombits(bit_range(15,19))
+            instr.imm = frombits(bit_range(20,31))
+            instr.aluop = ifunct[frombits(bit_range(12,14))]
             # if instr.aluop is AluOp.SRL and frombits(imm[5:11]) == 0x20: instr.aluop = AluOp.SRA
-            print("aluop", instr.aluop)
             return instr
         if opcode is Opcode.ST:
             instr.use_imm = True
-            instr.imm = frombits(bits[7:11] + bits[25:31])
-            instr.rs1 = frombits(bits[15:19])
-            instr.rs2 = frombits(bits[20:24])
+            instr.imm = frombits(bit_range(7 ,11) + bit_range(25,31))
+            instr.rs1 = frombits(bit_range(15,19))
+            instr.rs2 = frombits(bit_range(20,24))
             return instr
         if opcode is Opcode.BTYPE:
             instr.use_imm = True
-            imm = ([0] + bits[8:11] + bits[25:30] + [bits[7]] + [bits[31]])
+            imm = ([0] + bit_range(8,11) + bit_range(25,30) + [bits[7]] + [bits[31]])
             instr.imm = frombits(imm)
-            instr.rs1 = frombits(bits[15:19])
-            instr.rs2 = frombits(bits[20:24])
+            instr.rs1 = frombits(bit_range(15,19))
+            instr.rs2 = frombits(bit_range(20,24))
             instr.aluop = AluOp.SUB # resolve sign extensions in decode
-            instr.branch_cond = bfunct[frombits(bits[12:14])]
+            instr.branch_cond = bfunct[frombits(bit_range(12,14))]
             return instr
         if opcode is Opcode.JAL:
             instr.aluop = AluOp.NOP
-            instr.rd = frombits(bits[7:11])
-            instr.imm = frombits([0] + bits[21:30] + [bits[20]] + bits[12:19] + [bits[31]])
+            instr.rd = frombits(bit_range(7,11))
+            instr.imm = frombits([0] + bit_range(21,30) + [bits[20]] + bit_range(12,19) + [bits[31]])
             return instr
         if opcode is Opcode.LUI:
             instr.aluop = AluOp.NOP
-            instr.rd = frombits(bits[7:11])
-            instr.imm = frombits(bits[12:31])
+            instr.rd = frombits(bit_range(7,11))
+            instr.imm = frombits(bit_range(12,31))
             return instr
         if opcode is Opcode.GEMM:
-            instr.rc = frombits(bits[16:19])
-            instr.rb = frombits(bits[20:23])
-            instr.ra = frombits(bits[24:27])
-            instr.rd = frombits(bits[28:31])
+            instr.rc = frombits(bit_range(16,19))
+            instr.rb = frombits(bit_range(20,23))
+            instr.ra = frombits(bit_range(24,27))
+            instr.rd = frombits(bit_range(28,31))
             return instr
         if opcode is Opcode.STM:
             assert False, "we don't have a format for this yet"
@@ -124,8 +126,8 @@ class Core:
                 self.halted = True
                 return
             i = Instruction.decode(instruction_word)
-            res = self.scalar_alu(i)
-            print("Res: ", res)
+            res = np.int32(self.scalar_alu(i))
+            # print("Res: ", res)
             
             # Arithmetic
             if i.opcode is Opcode.RTYPE or Opcode.ITYPE:
@@ -172,7 +174,7 @@ class Core:
     def print_scalar_regs(self):
         s = ""
         for i, n in enumerate(self.scalar_regs):
-            s += f"x{str(i).zfill(2)}| {str(n).ljust(9, ' ')}     "
+            s += f"x{str(i).zfill(2)}| {str(n).ljust(10, ' ')}     "
             if not (i+1) % 4:
                 print(s)
                 s = ""

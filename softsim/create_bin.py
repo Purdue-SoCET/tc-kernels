@@ -6,7 +6,7 @@ with open('test_bin', 'wb') as f:
     data.append(int('00000000000100000000001000010011', base=2)) # addi x4, x0, 1
     data.append(int('01000000010000000000001010110011', base=2)) # sub x5, x0, x4
     data.append(int('00000000000100101101001100010011', base=2)) # srli x6, x5, 1
-    data.append(int('00000000000100101001001100010011', base=2)) # slli x7, x5, 1
+    data.append(int('00000000000100101001001110010011', base=2)) # slli x7, x5, 1
 
 
     for d in data:
