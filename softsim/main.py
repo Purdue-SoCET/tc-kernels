@@ -35,8 +35,11 @@ class Instruction:
             instr.rd = frombits(bits[7:11])
             instr.rs1 = frombits(bits[15:19])
             instr.imm = frombits(bits[20:31])
-            instr.aluop = ifunct[frombits(bits[12:14])]
-            if instr.aluop is AluOp.SRL and frombits(imm[5:11]) == 0x20: instr.aluop = AluOp.SRA
+            print("bits", bits[12:14])
+            print("bits", bits[12:14 + 1])
+            instr.aluop = ifunct[frombits(bits[12:14 + 1])]
+            # if instr.aluop is AluOp.SRL and frombits(imm[5:11]) == 0x20: instr.aluop = AluOp.SRA
+            print("aluop", instr.aluop)
             return instr
         if opcode is Opcode.ST:
             instr.use_imm = True

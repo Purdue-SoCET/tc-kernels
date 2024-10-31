@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from helpers import tobits, frombits
 
 # Opcodes
 # - instruction formats in the RISCV Spec Chapter 34 
@@ -70,10 +71,10 @@ alu_funct = {
     AluOp.XOR: lambda a, b: a^b,
     AluOp.OR: lambda a,b: a|b,
     AluOp.AND: lambda a,b: a&b,
-    AluOp.SLL: lambda a,b: a << b,
-    AluOp.SRL: lambda a,b: a >> b,
+    AluOp.SLL: lambda a,b: frombits(b*[0] + tobits([a], 32)[:32-b], True),
+    AluOp.SRL: lambda a,b: frombits(tobits([a], 32)[b:] + b*[0], True),
     AluOp.SLT: lambda a,b: a < b,
-    AluOp.SRA: lambda a,b: (a >> b) | ((a >= 0) & (-1 << (32 - a))),
+    AluOp.SRA: lambda a,b: a >> b,
 }
 
 rfunct = {
