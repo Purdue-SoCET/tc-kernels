@@ -1,6 +1,6 @@
 PYTHON := python3
 ASSEMBLER := assembler.py
-INPUT := kernels/test_rtype.S
+INPUT := kernels/test.rtype.S
 OUTPUT_BIN := output_rtype.bin
 
 all: run
