@@ -41,10 +41,10 @@
 
 ## Matrix Instructions
 | Instr | Type | Name | Description
-| ----- |---- | ----------- | 
-| `ld.m` | M | Load Matrix | `md = M[rs1]` | 
-| `st.m` | M | Store Matrix | `M[rs1] = md` | 
-| `gemm.m` | M | Matrix Multiply | `md = ma @ mb + mc` | 
+| ----- |---- | ---- |----------- | 
+| `ld.m` | M | Load Matrix | `md = M[rs1 + imm]` | 
+| `st.m` | M | Store Matrix | `M[rs1 + imm] = md` | 
+| `gemm.m` | GEMM | Matrix Multiply | `md = ma @ mb + mc` | 
 
 ## Psuedo-instructions
 | Instr | Name | Description | Uses |
@@ -128,7 +128,7 @@
         <td>6 - 0</td>
     </tr>
     <tr>
-        <td>M</td>
+        <td>GEMM</td>
         <td><code>rd</code></td>
         <td><code>ra</code></td>
         <td><code>rb</code></td>
@@ -136,6 +136,22 @@
         <td>reserved</td>
         <td><code>opcode </code></td>
         <td><strong>meaningless register names</strong></td>
+    </tr>
+        <tr>
+        <td></td>
+        <td>31 - 28</td>
+        <td>27 - 23</td>
+        <td>22 - 18</td>
+        <td>17 - 7</td>
+        <td>6 - 0</td>
+    </tr>
+    <tr>
+        <td>M</td>
+        <td><code>rd</code></td>
+        <td><code>rs1</code></td>
+        <td><code>stride</code></td>
+        <td><code>Imm[10:0]</code></td>
+        <td><code>opcode</code></td>
     </tr>
 </table>
 
