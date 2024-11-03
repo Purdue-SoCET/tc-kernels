@@ -14,6 +14,14 @@ class Instruction:
     
     def __init__(self, op: Opcode):
         self.opcode = op
+        self.aluop = None
+        self.rs1 = None
+        self.rs2 = None
+        self.ra = None
+        self.rb = None
+        self.rc = None
+        self.rd = None
+        self.imm = None
         self.use_imm = False
     
     @staticmethod
@@ -28,6 +36,8 @@ class Instruction:
         # print("Bits: ", bits)
         opcode = opcodes[frombits(bit_range(0,6))]
         instr = Instruction(opcode)
+        if opcode is Opcode.HALT:
+            return instr
         if opcode is Opcode.RTYPE or opcode is Opcode.MUL:
             instr.rd = frombits(bit_range(7,11))
             instr.rs1 = frombits(bit_range(15,19))
@@ -79,6 +89,22 @@ class Instruction:
         if opcode is Opcode.LDM:
             assert False, "we don't have a format for this yet"
         assert False, f"malformed instruction: f{bits}"
+
+    def print_instr(self):
+        st = "- "
+        if self.opcode is Opcode.HALT: print(st + "HALT"); return
+        if self.aluop: st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
+        var = ", x"
+        if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.MM}: var = " m"
+        if self.rd is not None:     st += var[1:] + str(self.rd)
+        if self.rs1 is not None:    st += var + str(self.rs1) 
+        if self.rs2 is not None:    st += var + str(self.rs2) 
+        if self.ra is not None:     st += var + str(self.ra) 
+        if self.rb is not None:     st += var + str(self.rb)
+        if self.rc is not None:     st += var + str(self.rc) 
+        if self.imm is not None:    st += var[:-1] + str(self.imm)
+        print(st)
+
         
 class Core:
     def __init__(self, memfile: str, cr: ControlRegister):
@@ -87,7 +113,7 @@ class Core:
             self.memory = f.read()
             f.close()
         self.scalar_regs = np.zeros(32, dtype=np.int32)
-        self.matrix_regs = np.zeros((32, 8, 8),  dtype=np.int32)
+        self.matrix_regs = np.zeros((16, 4, 4),  dtype=np.float16)
 
         self.cr = cr
         # print("Memory", self.memory)
@@ -121,11 +147,14 @@ class Core:
         while iter < max_iters:
             instruction_word = self.memread(self.pc)
             # print("Instr Word: ", instruction_word)
-            if (instruction_word == b''):
-                print("End of program")
-                self.halted = True
-                return
             i = Instruction.decode(instruction_word)
+
+            i.print_instr()
+
+            if i.opcode is Opcode.HALT:
+                self.halted = True
+                print("Program halted")
+                return
             res = np.int32(self.scalar_alu(i))
             # print("Res: ", res)
             
@@ -159,10 +188,6 @@ class Core:
                 self.scalar_regs[2] = self.pc + 4
                 self.pc += self.scalar_regs[i.rs1] + i.imm
                 continue
-            
-            if i.opcode is Opcode.HALT:
-                self.halted = True
-                return
         print("reached maximum number of iterations.")
             
     def scalar_alu(self, i):
@@ -179,6 +204,12 @@ class Core:
                 print(s)
                 s = ""
         print()
+
+    def print_matrix_regs(self):
+        for i, m in enumerate(self.matrix_regs):
+            if np.allclose(np.zeros(np.shape(m)), m): m_str = "[0]" 
+            else: m_str = "\n" + str(m)
+            print(f"m{str(i).zfill(2)}| {m_str}")
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -190,3 +221,5 @@ if __name__ == "__main__":
     core = Core(filename, cr)
     core.run()
     core.print_scalar_regs()
+    core.matrix_regs = np.random.random((16, 4, 4)) * 10
+    core.print_matrix_regs()

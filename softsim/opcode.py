@@ -128,5 +128,6 @@ opcodes = {
     0b1100011: Opcode.BTYPE,
     0b1101111: Opcode.JAL,
     0b1100111: Opcode.JALR,
+    0b1111111: Opcode.HALT
     # GEMM
 }
