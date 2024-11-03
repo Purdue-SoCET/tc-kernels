@@ -221,5 +221,5 @@ if __name__ == "__main__":
     core = Core(filename, cr)
     core.run()
     core.print_scalar_regs()
-    core.matrix_regs = np.random.random((16, 4, 4)) * 10
+    # core.matrix_regs = np.random.random((16, 4, 4)) * 10
     core.print_matrix_regs()
