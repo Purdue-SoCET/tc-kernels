@@ -45,7 +45,7 @@ class Opcode(Enum):
     # Matrix Extension
     STM = auto()
     LDM = auto()
-    MM = auto()
+    GEMM = auto()
     
     # Macros
     PUSH = auto()
@@ -128,6 +128,8 @@ opcodes = {
     0b1100011: Opcode.BTYPE,
     0b1101111: Opcode.JAL,
     0b1100111: Opcode.JALR,
-    0b1111111: Opcode.HALT
-    # GEMM
+    0b1111111: Opcode.HALT,
+    0b1000111: Opcode.LDM,
+    0b1010111: Opcode.STM,
+    0b1110111: Opcode.GEMM,
 }

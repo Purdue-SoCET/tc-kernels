@@ -95,7 +95,7 @@ class Instruction:
         if self.opcode is Opcode.HALT: print(st + "HALT"); return
         if self.aluop: st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
         var = ", x"
-        if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.MM}: var = " m"
+        if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: var = " m"
         if self.rd is not None:     st += var[1:] + str(self.rd)
         if self.rs1 is not None:    st += var + str(self.rs1) 
         if self.rs2 is not None:    st += var + str(self.rs2) 
@@ -114,12 +114,9 @@ class Core:
             f.close()
         self.scalar_regs = np.zeros(32, dtype=np.int32)
         self.matrix_regs = np.zeros((16, 4, 4),  dtype=np.float16)
-
         self.cr = cr
-        # print("Memory", self.memory)
     
     def run(self):
-        #cr = self.load_cr()
         cr = self.cr
         self._run(cr)
         if self.halted: print("exited gracefully.")
@@ -129,12 +126,10 @@ class Core:
     # read & write a word (byte addressed)
     def memwrite(self, addr: int, data):
         assert addr % 4 == 0, "tried to write to a misaligned address"
-        # self.memory[addr:addr+3] = data
         self.memory[addr:addr+4] = data
 
     def memread(self, addr: int) -> bytes:
         assert addr % 4 == 0, "tried to read from a misaligned address"
-        # return self.memory[addr:addr+3]
         return self.memory[addr:addr+4]
 
     
@@ -188,6 +183,14 @@ class Core:
                 self.scalar_regs[2] = self.pc + 4
                 self.pc += self.scalar_regs[i.rs1] + i.imm
                 continue
+
+            #Matrix
+            if i.opcode is Opcode.GEMM:
+                W = self.matrix_regs[i.ra]
+                I = self.matrix_regs[i.rb]
+                A = self.matrix_regs[i.rc]
+                self.matrix_regs[i.rd] = np.matmul(W, I) + A
+                self.pc += 4
         print("reached maximum number of iterations.")
             
     def scalar_alu(self, i):

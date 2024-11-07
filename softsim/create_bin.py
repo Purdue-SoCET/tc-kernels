@@ -7,7 +7,9 @@ with open('test_bin', 'wb') as f:
     data.append(int('01000000010000000000001010110011', base=2)) # sub  x5, x0, x4
     data.append(int('00000000000100101101001100010011', base=2)) # srli x6, x5, 1
     data.append(int('00000000000100101001001110010011', base=2)) # slli x7, x5, 1
+    data.append(int('00000000000100101001001110010011', base=2)) # addi x8, x0, 10
     data.append(int('11111111111111111111111111111111', base=2)) # HALT
+    data.append(int('00000000000000000000000000001001', base=2)) # 9
 
     for d in data:
         f.write(d.to_bytes(4, byteorder='big'))
