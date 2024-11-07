@@ -1,7 +1,7 @@
 PYTHON := python3
 ASSEMBLER := assembler.py
-INPUT := kernels/test.rtype.S
-OUTPUT_BIN := output_rtype.bin
+INPUT := kernels/fib.S
+OUTPUT_BIN := output_fib.bin
 
 all: run
 
