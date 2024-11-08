@@ -1,7 +1,7 @@
 import struct
 import sys
 import re
-from typing import Dict
+from typing import Dict, List, Tuple
 
 opcode_map = {
     "add.i": 0x33, "sub.i": 0x33, "xor.i": 0x33, "or.i": 0x33, "and.i": 0x33,
@@ -22,21 +22,6 @@ register_map = {
     "m0": 0, "m1": 1, "m2": 2, "m3": 3, "m4": 4, "m5": 5, "m6": 6, "m7": 7, "m8": 8, "m9": 9,
     "m10": 10, "m11": 11, "m12": 12, "m13": 13, "m14": 14, "m15": 15
 }
-
-# register_map = {
-#     # Integer Registers
-#     "x0": 0, "x1": 1, "x2": 2, "x3": 3, "x4": 4, "x5": 5, "x6": 6, "x7": 7, 
-#     "x8": 8, "x9": 9, "x10": 10, "x11": 11, "x12": 12, "x13": 13, "x14": 14, 
-#     "x15": 15, "x16": 16, "x17": 17, "x18": 18, "x19": 19, "x20": 20, 
-#     "x21": 21, "x22": 22, "x23": 23, "x24": 24, "x25": 25, "x26": 26, 
-#     "x27": 27, "x28": 28, "x29": 29, "x30": 30, "x31": 31,
-    
-#     # Matrix Registers (mapped to a different range)
-#     "m0": 32, "m1": 33, "m2": 34, "m3": 35, "m4": 36, "m5": 37, "m6": 38, 
-#     "m7": 39, "m8": 40, "m9": 41, "m10": 42, "m11": 43, "m12": 44, 
-#     "m13": 45, "m14": 46, "m15": 47
-# }
-
 
 def parse_file(filename):
     instructions = []
@@ -86,7 +71,11 @@ def encode_s_type(opcode, funct3, rs1, rs2, imm):
 def encode_b_type(opcode, funct3, rs1, rs2, imm):
     rs1_bin = get_register_binary(rs1)
     rs2_bin = get_register_binary(rs2)
+    
     imm_bin = imm & 0x1FFF  # Immediate- 13 bits
+
+    if imm < 0:
+        imm = (1 << 13) + imm
 
     imm_12 = (imm_bin >> 12) & 0x1
     imm_10_5 = (imm_bin >> 5) & 0x3F
@@ -129,10 +118,28 @@ def encode_mm_type(opcode, rd, ra, rb, rc):
     machine_code = (rd_bin << 28) | (ra_bin << 24) | (rb_bin << 20) | (rc_bin << 16) | opcode
     return machine_code
 
-def handle_instruction(instruction, label_map):
+def handle_instruction(instruction, label_map, current_address):
     parts = instruction.split()
+    if not parts:  # Skip empty or invalid instructions
+        return []
     instr = parts[0]
     print("assembling instruction: ", instruction)
+    if instr in ["halt"]:
+        return [0xFFFFFFFF]
+    #pseudo instr
+    if instr in ["push, pop, li, nop, mov.i"] :
+        pseudo_expansion = handle_pseudo_instruction(instruction)
+        if len(pseudo_expansion) == 1 and isinstance(pseudo_expansion[0], int):
+            return [pseudo_expansion[0]]
+
+        elif len(pseudo_expansion) > 1 or pseudo_expansion[0] != instruction:
+        # If it was expanded, handle each real instruction from the expansion
+            machine_codes = []
+            for instr in pseudo_expansion:
+                machine_codes.extend(handle_instruction(instr, label_map, current_address))
+                current_address += 1
+            return machine_codes
+        
     if instr in ["add.i", "sub.i", "xor.i", "or.i", "and.i", "sll.i", "srl.i", "sra.i", "slt.i", "sltu.i", "mul.i", "mov.i"]:
         rd, rs1, rs2 = parts[1].strip(','), parts[2].strip(','), parts[3]
         funct3, funct7 = 0, 0 
@@ -151,7 +158,7 @@ def handle_instruction(instruction, label_map):
         return [encode_r_type(opcode_map[instr], funct3, funct7, rd, rs1, rs2)]
 
     elif instr in ["addi.i", "xori.i", "ori.i", "andi.i", "slli.i", "srli.i", "srai.i", "slti.i", "sltui.i", "jalr"]:
-        rd, rs1, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3])
+        rd, rs1, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3], 0)
         funct3 = 0 
         if instr == "addi.i": funct3 = 0x0
         elif instr == "xori.i": funct3 = 0x4
@@ -165,19 +172,27 @@ def handle_instruction(instruction, label_map):
         elif instr == "jalr": funct3 = 0x0
         return [encode_i_type(opcode_map[instr], funct3, rd, rs1, imm)]
 
-    elif instr == "st.i":
-        rs1, rs2, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3])
+    elif instr == "sw.i":
+        match = re.search(r'sw.i\s+x(?P<rs2>\d+),\s*(?P<imm>[-]?\d+)\(x(?P<rs1>\d+)\)', instruction)
+        if match:
+            rs2 = f"x{match.group('rs2')}"
+            rs1 = f"x{match.group('rs1')}"
+            imm = int(match.group('imm'), 0)
         funct3 = 0x2
         return [encode_s_type(opcode_map[instr], funct3, rs1, rs2, imm)]
     
     elif instr == "lw.i":
-        match = re.search(r'lw.i x(P?<rs1>\d+), (P?<imm>\d+)\[x(P?<rs2>\d+)\]', instruction)
-        rs1, rs2, imm = match.groups("rs1"), match.groups("rs2"), match.groups("imm")
+        match = re.search(r'lw.i\s+x(?P<rd>\d+),\s*(?P<imm>[-]?\d+)\(x(?P<rs1>\d+)\)', instruction)
+        if match:
+            rd = f"x{match.group('rd')}"
+            rs1 = f"x{match.group('rs1')}"
+            imm = int(match.group('imm'), 0)
         funct3 = 0x2
         return [encode_i_type(opcode_map[instr], funct3, rd, rs1, imm)]
 
     elif instr in ["beq.i", "bne.i", "blt.i", "bge.i"]:
-        rs1, rs2, imm = parts[1].strip(','), parts[2].strip(','), int(parts[3])
+        rs1, rs2, label = parts[1].strip(','), parts[2].strip(','), parts[3]
+        imm = calculate_offset(label_map, label, current_address)
         funct3 = 0
         if instr == "beq.i": funct3 = 0x0
         elif instr == "bne.i": funct3 = 0x1
@@ -186,7 +201,7 @@ def handle_instruction(instruction, label_map):
         return [encode_b_type(opcode_map[instr], funct3, rs1, rs2, imm)]
 
     elif instr == "lui.i":
-        rd, imm = parts[1].strip(','), int(parts[2])
+        rd, imm = parts[1].strip(','), int(parts[2], 0)
         return [encode_u_type(opcode_map[instr], rd, imm)]
 
     elif instr == "jal":
@@ -203,11 +218,61 @@ def handle_instruction(instruction, label_map):
 
     return [0]
 
+def create_label_map(instructions: List[str]) -> Tuple[List[str], Dict[str, int]]:
+    label_map = {}
+    mem_mapped_instructions = []
+    current_address = 0
+
+    for instruction in instructions:
+        if ':' in instruction:
+            # Label found
+            label, *rest = instruction.split(':')
+            label_map[label.strip()] = current_address
+            if rest and rest[0].strip():
+                instruction = rest[0].strip()
+                mem_mapped_instructions.append(instruction)
+                current_address += 1
+        elif instruction.strip():  # add non-empty instructions
+            mem_mapped_instructions.append(instruction.strip())
+            current_address += 1
+
+    return mem_mapped_instructions, label_map
+
+def calculate_offset(label_map: Dict[str, int], label: str, current_address: int) -> int:
+    if label in label_map:
+        return label_map[label] - current_address - 1
+    else:
+        raise ValueError(f"Label '{label}' not found in label map.")
+
+def handle_pseudo_instruction(instr: str) -> List[int]:
+    parts = instr.split()
+    pseudo = parts[0]
+
+    if pseudo == "li":
+        rd, imm = parts[1].strip(','), int(parts[2], 0)
+        if -2048 <= imm <= 2047:
+            return [f"addi.i {rd}, x0, {imm}"]
+        else:
+            upper = (imm + (1 << 11)) >> 12
+            lower = imm & 0xFFF
+            return [f"lui.i {rd}, {upper}", f"addi.i {rd}, {rd}, {lower}"]
+
+    # x2 should be allocated as sp
+    elif pseudo == "push":
+        rd = parts[1]
+        return [f"addi.i x2, x2, -4", f"sw.i {rd}, 0(x2)"]
+
+    elif pseudo == "pop":
+        rd = parts[1]
+        return [f"lw.i {rd}, 0(x2)", f"addi.i x2, x2, 4"]
+
+    return [instr]
+
 def assemble_instructions(instructions, label_map: Dict[int, str]):
     machine_codes = []
     for i,instr in enumerate(instructions):
         try:
-            codes = handle_instruction(instr, label_map)
+            codes = handle_instruction(instr, label_map, i)
             machine_codes.extend(codes)
         except Exception as e:
             print(f"\033[91mException on line {i}:\033[0m")
@@ -223,22 +288,12 @@ def write_machine_code(filename, machine_codes):
 def assemble_file(input_file, output_file):
     instructions = parse_file(input_file)
     # clean out aesthetic lines
-    instructions = [i for i in instructions if any(i.find(op) >= 0 for op in opcode_map) or ":" in i]
-    instructions = [i[:i.find("//")] if i.find("//") >= 0 else i for i in instructions]
-    # expand pseudo instructions
+    # instructions = [i for i in instructions if any(i.find(op) >= 0 for op in opcode_map) or ":" in i]
+    # instructions = [i[:i.find("//")] if i.find("//") >= 0 else i for i in instructions]
 
-    # build label map
-    _instructions = []
-    label_map = {}
-    for i in instructions:
-        i = i.strip()
-        if ":" in i: label_map[i[:i.find("//")]] = len(_instructions)
-        else: _instructions.append(i)
-    # replace labels
-    __instructions = _instructions
-    for l in label_map: [i.replace(l, f"{label_map[l]}") for i in __instructions]
     # assemble instructions
-    machine_codes = assemble_instructions(__instructions, label_map)
+    mem_mapped_instr, label_map = create_label_map(instructions)
+    machine_codes = assemble_instructions(mem_mapped_instr, label_map)
     write_machine_code(output_file, machine_codes)
     print(f"Machine code written to {output_file}.")
 
