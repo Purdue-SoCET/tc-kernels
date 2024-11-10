@@ -28,7 +28,7 @@ class Instruction:
     def decode(instruction: bytes):
         assert len(instruction) == 4, "instructions should be four bytes!"
         bits = tobits(instruction)
-
+        # print(bits)
         def bit_range(a, b = None):
             if b is None: b = a
             return bits[a: b + 1]
@@ -60,9 +60,9 @@ class Instruction:
             instr.rs2 = frombits(bit_range(20,24))
             return instr
         if opcode is Opcode.BTYPE:
-            instr.use_imm = True
+            instr.use_imm = False
             imm = ([0] + bit_range(8,11) + bit_range(25,30) + [bits[7]] + [bits[31]])
-            instr.imm = frombits(imm)
+            instr.imm = frombits(imm, signed = True)
             instr.rs1 = frombits(bit_range(15,19))
             instr.rs2 = frombits(bit_range(20,24))
             instr.aluop = AluOp.SUB # resolve sign extensions in decode
@@ -133,28 +133,27 @@ class Core:
         return self.memory[addr:addr+4]
 
     
-    def _run(self, cr: ControlRegister, max_iters=10000):
+    def _run(self, cr: ControlRegister, max_iters=50):
         # initialize registers
         self.pc = cr.start_address
         self.scalar_regs[2] = cr.stack_pointer
         
         iter = 0
         while iter < max_iters:
-            instruction_word = self.memread(self.pc)
-            # print("Instr Word: ", instruction_word)
-            i = Instruction.decode(instruction_word)
+            iter += 1
 
-            i.print_instr()
+            instruction_word = self.memread(self.pc)
+            instruction_word = instruction_word[::-1]
+            i = Instruction.decode(instruction_word)
 
             if i.opcode is Opcode.HALT:
                 self.halted = True
                 print("Program halted")
                 return
             res = np.int32(self.scalar_alu(i))
-            # print("Res: ", res)
             
             # Arithmetic
-            if i.opcode is Opcode.RTYPE or Opcode.ITYPE:
+            if i.opcode is Opcode.RTYPE or i.opcode is Opcode.ITYPE:
                 self.scalar_regs[i.rd] = res
                 self.pc += 4
                 continue
