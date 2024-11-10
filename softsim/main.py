@@ -93,7 +93,11 @@ class Instruction:
     def print_instr(self):
         st = "- "
         if self.opcode is Opcode.HALT: print(st + "HALT"); return
-        if self.aluop: st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
+        if self.aluop: 
+            if self.opcode is Opcode.BTYPE:
+                st += str(self.branch_cond)[9:].lower()
+            else:
+                st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
         var = ", x"
         if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: var = " m"
         if self.rd is not None:     st += var[1:] + str(self.rd)
@@ -103,6 +107,7 @@ class Instruction:
         if self.rb is not None:     st += var + str(self.rb)
         if self.rc is not None:     st += var + str(self.rc) 
         if self.imm is not None:    st += var[:-1] + str(self.imm)
+        if self.opcode is Opcode.BTYPE: st = st[0:5] + ' ' + st[6:]
         print(st)
 
         
@@ -145,6 +150,8 @@ class Core:
             instruction_word = self.memread(self.pc)
             instruction_word = instruction_word[::-1]
             i = Instruction.decode(instruction_word)
+
+            i.print_instr()
 
             if i.opcode is Opcode.HALT:
                 self.halted = True
