@@ -87,8 +87,7 @@ def encode_b_type(opcode, funct3, rs1, rs2, imm):
 
 def encode_u_type(opcode, rd, imm):
     rd_bin = get_register_binary(rd)
-    imm_bin = imm & 0xFFFFF000  # Immediate- 20 bits, shifted left by 12
-
+    imm_bin = imm << 12
     machine_code = (imm_bin) | (rd_bin << 7) | opcode
     return machine_code
 

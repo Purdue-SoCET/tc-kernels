@@ -97,7 +97,10 @@ class Instruction:
             if self.opcode is Opcode.BTYPE:
                 st += str(self.branch_cond)[9:].lower()
             else:
-                st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
+                if self.opcode in {Opcode.ST, Opcode.LD, Opcode.LUI}:
+                    st += str(self.opcode)[7:].ljust(4, ' ').lower()
+                else:
+                    st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
         var = ", x"
         if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: var = " m"
         if self.rd is not None:     st += var[1:] + str(self.rd)
@@ -117,7 +120,7 @@ class Core:
         with open(self.memfile, "rb") as f:
             self.memory = f.read()
             f.close()
-        self.scalar_regs = np.zeros(32, dtype=np.int32)
+        self.scalar_regs = np.zeros(32, dtype=np.uint32)
         self.matrix_regs = np.zeros((16, 4, 4),  dtype=np.float16)
         self.cr = cr
     
@@ -165,7 +168,8 @@ class Core:
                 self.pc += 4
                 continue
             if i.opcode is Opcode.LUI:
-                self.scalar_regs[i.rd] = (self.scalar_regs[i.rd] & ~0xfffff000) | (i.imm << 12)
+                print(i.imm)
+                self.scalar_regs[i.rd] = (i.imm & 0x000FFFFF) << 12
                 self.pc += 4
             
             # Memory

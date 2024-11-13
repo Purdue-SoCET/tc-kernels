@@ -125,6 +125,7 @@ opcodes = {
     0b0010011: Opcode.ITYPE,
     0b0000011: Opcode.LD,
     0b0100011: Opcode.ST,
+    0b0110111: Opcode.LUI,
     0b1100011: Opcode.BTYPE,
     0b1101111: Opcode.JAL,
     0b1100111: Opcode.JALR,
