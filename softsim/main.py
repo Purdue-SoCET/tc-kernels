@@ -28,7 +28,7 @@ class Instruction:
     def decode(instruction: bytes):
         assert len(instruction) == 4, "instructions should be four bytes!"
         bits = tobits(instruction)
-
+        # print(bits)
         def bit_range(a, b = None):
             if b is None: b = a
             return bits[a: b + 1]
@@ -45,7 +45,7 @@ class Instruction:
             # funct7 ++ funct3
             instr.aluop = rfunct[frombits(bit_range(25,31) + bit_range(12,14))]
             return instr
-        if opcode is Opcode.ITYPE or opcode is Opcode.LD:
+        if opcode is Opcode.ITYPE or opcode is Opcode.LW:
             instr.use_imm = True
             instr.rd = frombits(bit_range(7,11))
             instr.rs1 = frombits(bit_range(15,19))
@@ -53,16 +53,16 @@ class Instruction:
             instr.aluop = ifunct[frombits(bit_range(12,14))]
             # if instr.aluop is AluOp.SRL and frombits(imm[5:11]) == 0x20: instr.aluop = AluOp.SRA
             return instr
-        if opcode is Opcode.ST:
+        if opcode is Opcode.SW:
             instr.use_imm = True
             instr.imm = frombits(bit_range(7 ,11) + bit_range(25,31))
             instr.rs1 = frombits(bit_range(15,19))
             instr.rs2 = frombits(bit_range(20,24))
             return instr
         if opcode is Opcode.BTYPE:
-            instr.use_imm = True
+            instr.use_imm = False
             imm = ([0] + bit_range(8,11) + bit_range(25,30) + [bits[7]] + [bits[31]])
-            instr.imm = frombits(imm)
+            instr.imm = frombits(imm, signed = True)
             instr.rs1 = frombits(bit_range(15,19))
             instr.rs2 = frombits(bit_range(20,24))
             instr.aluop = AluOp.SUB # resolve sign extensions in decode
@@ -93,7 +93,14 @@ class Instruction:
     def print_instr(self):
         st = "- "
         if self.opcode is Opcode.HALT: print(st + "HALT"); return
-        if self.aluop: st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
+        if self.aluop: 
+            if self.opcode is Opcode.BTYPE:
+                st += str(self.branch_cond)[9:].lower()
+            else:
+                if self.opcode in {Opcode.SW, Opcode.LW, Opcode.LUI}:
+                    st += str(self.opcode)[7:].ljust(4, ' ').lower()
+                else:
+                    st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
         var = ", x"
         if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: var = " m"
         if self.rd is not None:     st += var[1:] + str(self.rd)
@@ -103,6 +110,7 @@ class Instruction:
         if self.rb is not None:     st += var + str(self.rb)
         if self.rc is not None:     st += var + str(self.rc) 
         if self.imm is not None:    st += var[:-1] + str(self.imm)
+        if self.opcode is Opcode.BTYPE: st = st[0:5] + ' ' + st[6:]
         print(st)
 
         
@@ -112,7 +120,7 @@ class Core:
         with open(self.memfile, "rb") as f:
             self.memory = f.read()
             f.close()
-        self.scalar_regs = np.zeros(32, dtype=np.int32)
+        self.scalar_regs = np.zeros(32, dtype=np.uint32)
         self.matrix_regs = np.zeros((16, 4, 4),  dtype=np.float16)
         self.cr = cr
     
@@ -140,8 +148,10 @@ class Core:
         
         iter = 0
         while iter < max_iters:
+            iter += 1
+
             instruction_word = self.memread(self.pc)
-            # print("Instr Word: ", instruction_word)
+            instruction_word = instruction_word[::-1]
             i = Instruction.decode(instruction_word)
 
             i.print_instr()
@@ -151,21 +161,20 @@ class Core:
                 print("Program halted")
                 return
             res = np.int32(self.scalar_alu(i))
-            # print("Res: ", res)
             
             # Arithmetic
-            if i.opcode is Opcode.RTYPE or Opcode.ITYPE:
+            if i.opcode is Opcode.RTYPE or i.opcode is Opcode.ITYPE:
                 self.scalar_regs[i.rd] = res
                 self.pc += 4
                 continue
             if i.opcode is Opcode.LUI:
-                self.scalar_regs[i.rd] = (self.scalar_regs[i.rd] & ~0xfffff000) | (i.imm << 12)
+                self.scalar_regs[i.rd] = (i.imm & 0x000FFFFF) << 12
                 self.pc += 4
             
             # Memory
-            if i.opcode is Opcode.LD:
+            if i.opcode is Opcode.LW:
                 self.scalar_regs[i.rd] = self.memread(res)
-            if i.opcode is Opcode.ST:
+            if i.opcode is Opcode.SW:
                 self.memwrite(res, self.scalar_regs[i.rs2])
             
             # Control Flow
@@ -202,7 +211,7 @@ class Core:
     def print_scalar_regs(self):
         s = ""
         for i, n in enumerate(self.scalar_regs):
-            s += f"x{str(i).zfill(2)}| {str(n).ljust(10, ' ')}     "
+            s += f"x{str(i).zfill(2)}| {str(np.int32(n)).ljust(10, ' ')}     "
             if not (i+1) % 4:
                 print(s)
                 s = ""
