@@ -45,7 +45,7 @@ class Instruction:
             # funct7 ++ funct3
             instr.aluop = rfunct[frombits(bit_range(25,31) + bit_range(12,14))]
             return instr
-        if opcode is Opcode.ITYPE or opcode is Opcode.LD:
+        if opcode is Opcode.ITYPE or opcode is Opcode.LW:
             instr.use_imm = True
             instr.rd = frombits(bit_range(7,11))
             instr.rs1 = frombits(bit_range(15,19))
@@ -53,7 +53,7 @@ class Instruction:
             instr.aluop = ifunct[frombits(bit_range(12,14))]
             # if instr.aluop is AluOp.SRL and frombits(imm[5:11]) == 0x20: instr.aluop = AluOp.SRA
             return instr
-        if opcode is Opcode.ST:
+        if opcode is Opcode.SW:
             instr.use_imm = True
             instr.imm = frombits(bit_range(7 ,11) + bit_range(25,31))
             instr.rs1 = frombits(bit_range(15,19))
@@ -97,7 +97,7 @@ class Instruction:
             if self.opcode is Opcode.BTYPE:
                 st += str(self.branch_cond)[9:].lower()
             else:
-                if self.opcode in {Opcode.ST, Opcode.LD, Opcode.LUI}:
+                if self.opcode in {Opcode.SW, Opcode.LW, Opcode.LUI}:
                     st += str(self.opcode)[7:].ljust(4, ' ').lower()
                 else:
                     st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
@@ -168,14 +168,13 @@ class Core:
                 self.pc += 4
                 continue
             if i.opcode is Opcode.LUI:
-                print(i.imm)
                 self.scalar_regs[i.rd] = (i.imm & 0x000FFFFF) << 12
                 self.pc += 4
             
             # Memory
-            if i.opcode is Opcode.LD:
+            if i.opcode is Opcode.LW:
                 self.scalar_regs[i.rd] = self.memread(res)
-            if i.opcode is Opcode.ST:
+            if i.opcode is Opcode.SW:
                 self.memwrite(res, self.scalar_regs[i.rs2])
             
             # Control Flow
@@ -212,7 +211,7 @@ class Core:
     def print_scalar_regs(self):
         s = ""
         for i, n in enumerate(self.scalar_regs):
-            s += f"x{str(i).zfill(2)}| {str(n).ljust(10, ' ')}     "
+            s += f"x{str(i).zfill(2)}| {str(np.int32(n)).ljust(10, ' ')}     "
             if not (i+1) % 4:
                 print(s)
                 s = ""

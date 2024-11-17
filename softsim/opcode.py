@@ -1,5 +1,6 @@
 from enum import Enum, auto
 from helpers import tobits, frombits
+import numpy as np
 
 # Opcodes
 # - instruction formats in the RISCV Spec Chapter 34 
@@ -23,12 +24,12 @@ class Opcode(Enum):
     
     SLTUI = auto()
     
-    LD = auto()
+    LW = auto()
     
     JALR = auto()
     
     # S Type
-    ST = auto()
+    SW = auto()
     
     # B Type
     BTYPE = auto()
@@ -66,8 +67,8 @@ class AluOp(Enum):
 
 alu_funct = {
     AluOp.NOP: lambda a, b: a,
-    AluOp.ADD: lambda a, b: a + b,
-    AluOp.SUB: lambda a, b: a - b,
+    AluOp.ADD: lambda a, b: np.uint32(np.int32(a) + np.int32(b)),
+    AluOp.SUB: lambda a, b: np.uint32(np.int32(a) - np.int32(b)),
     AluOp.XOR: lambda a, b: a^b,
     AluOp.OR: lambda a,b: a|b,
     AluOp.AND: lambda a,b: a&b,
@@ -91,6 +92,7 @@ rfunct = {
 }
 ifunct = {
     0b000: AluOp.ADD,
+    0b010: AluOp.ADD,
     0b100: AluOp.XOR,
     0b110: AluOp.OR,
     0b111: AluOp.AND,
@@ -123,8 +125,8 @@ bfunct = {
 opcodes = {
     0b0110011: Opcode.RTYPE,
     0b0010011: Opcode.ITYPE,
-    0b0000011: Opcode.LD,
-    0b0100011: Opcode.ST,
+    0b0000011: Opcode.LW,
+    0b0100011: Opcode.SW,
     0b0110111: Opcode.LUI,
     0b1100011: Opcode.BTYPE,
     0b1101111: Opcode.JAL,
