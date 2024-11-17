@@ -141,7 +141,7 @@ class Core:
         return self.memory[addr:addr+4]
 
     
-    def _run(self, cr: ControlRegister, max_iters=50):
+    def _run(self, cr: ControlRegister, max_iters=10000):
         # initialize registers
         self.pc = cr.start_address
         self.scalar_regs[2] = cr.stack_pointer
