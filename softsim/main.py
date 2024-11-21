@@ -269,12 +269,12 @@ class Core:
         DATA_START = 0x200
         i = DATA_START
         print("Data memory: ")
-        print("Addr.    int32", 9*" ", "fp16 [31:16]", 4*" ", "fp16 [15:0]")
+        print("Addr.    int32", 9*" ", "fp16 [15:0]", "    fp16 [31:16]")
         while (i < len(self.memory)):
             as_int = str(np.frombuffer(self.memory[i:i+4], dtype=np.int32)[0])
-            f1 = str(np.frombuffer(self.memory[i:i+2], dtype=np.float16)[0])
-            f2 = str(np.frombuffer(self.memory[i+2:i+4], dtype=np.float16)[0])
-            print(hex(i), "| ", as_int.ljust(15, ' '), f1.ljust(15, ' '), f2.ljust(15, ' '))
+            f1 = str(np.frombuffer(self.memory[i+2:i+4], dtype=np.float16)[0])
+            f2 = str(np.frombuffer(self.memory[i:i+2], dtype=np.float16)[0])
+            print(hex(i), "| ", as_int.ljust(15, ' '), f2.ljust(15, ' '), f1.ljust(15, ' '))
             i += 4
         print()
         
