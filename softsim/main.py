@@ -103,21 +103,22 @@ class Instruction:
             if self.opcode is Opcode.BTYPE:
                 st += str(self.branch_cond)[9:].lower()
             else:
-                if self.opcode in {Opcode.SW, Opcode.LW, Opcode.LUI}:
+                if self.opcode in {Opcode.SW, Opcode.LW, Opcode.LUI, 
+                                   Opcode.LDM, Opcode.STM, Opcode.GEMM}:
                     st += str(self.opcode)[7:].ljust(4, ' ').lower()
                 else:
                     st += (str(self.aluop).lower()[6:] + 'i'*self.use_imm).ljust(4, ' ')
         var = ", x"
-        if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: var = " m"
+        if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: 
+            var = ", m"
         if self.rd is not None:     st += var[1:] + str(self.rd)
-        if self.rs1 is not None and self.opcode not in {Opcode.SW, Opcode.LW}:
-            st += var + str(self.rs1) 
+        if self.rs1 is not None and self.opcode not in {Opcode.SW, Opcode.LW}: st += ", x" + str(self.rs1) 
         if self.rs2 is not None:    st += var + str(self.rs2) 
         if self.ra is not None:     st += var + str(self.ra) 
         if self.rb is not None:     st += var + str(self.rb)
         if self.rc is not None:     st += var + str(self.rc) 
         if self.imm is not None:
-            if self.opcode not in {Opcode.SW, Opcode.LW}:
+            if self.opcode not in {Opcode.SW, Opcode.LW, Opcode.LDM, Opcode.STM}:
                 st += var[:-1] + str(self.imm)
             else:
                 st += f", {self.imm}(x{self.rs1})"
@@ -247,6 +248,7 @@ class Core:
         return out
 
     def print_scalar_regs(self):
+        print("Scalar Registers: ")
         s = ""
         for i, n in enumerate(self.scalar_regs):
             s += f"x{str(i).zfill(2)}| {str(np.int32(n)).ljust(10, ' ')}     "
@@ -256,16 +258,23 @@ class Core:
         print()
 
     def print_matrix_regs(self):
+        print("Matrix Registers: ")
         for i, m in enumerate(self.matrix_regs):
             if np.allclose(np.zeros(np.shape(m)), m): m_str = "[0]" 
             else: m_str = "\n" + str(m)
             print(f"m{str(i).zfill(2)}| {m_str}")
+        print()
 
     def print_data_memory(self):
         DATA_START = 0x200
         i = DATA_START
+        print("Data memory: ")
+        print("Addr.    int32", 9*" ", "fp16 [31:16]", 4*" ", "fp16 [15:0]")
         while (i < len(self.memory)):
-            print(hex(i), np.frombuffer(self.memory[i:i+4], dtype=np.int32)[0])
+            as_int = str(np.frombuffer(self.memory[i:i+4], dtype=np.int32)[0])
+            f1 = str(np.frombuffer(self.memory[i:i+2], dtype=np.float16)[0])
+            f2 = str(np.frombuffer(self.memory[i+2:i+4], dtype=np.float16)[0])
+            print(hex(i), "| ", as_int.ljust(15, ' '), f1.ljust(15, ' '), f2.ljust(15, ' '))
             i += 4
         print()
         
@@ -280,5 +289,6 @@ if __name__ == "__main__":
     core.run()
     core.print_scalar_regs()
     # core.matrix_regs = np.random.random((16, 4, 4)) * 10
-    core.print_data_memory()
     core.print_matrix_regs()
+    core.print_data_memory()
+
