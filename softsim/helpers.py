@@ -1,3 +1,4 @@
+import numpy as np
 
 def tobits(data, bit_len = 8): 
     bits = []
@@ -8,6 +9,10 @@ def tobits(data, bit_len = 8):
     return bits
 
 def frombits(data, signed = False):
-    if data[-1] and signed: return -1 * frombits([int(not n) for n in data]) - 1
-    else: return sum(b << i for i,b in enumerate(data))
+    if data[-1] and signed: 
+        return -1 * np.int32(frombits([int(not n) for n in data])) - 1
+    else: 
+        s = sum(b << i for i,b in enumerate(data))
+        if signed: return np.int32(s) 
+        else: return np.uint32(s)
    

@@ -239,7 +239,7 @@ def create_label_map(instructions: List[str]) -> Tuple[List[str], Dict[str, int]
 
 def calculate_offset(label_map: Dict[str, int], label: str, current_address: int) -> int:
     if label in label_map:
-        return label_map[label] - current_address - 1
+        return (label_map[label] - current_address) * 2
     else:
         raise ValueError(f"Label '{label}' not found in label map.")
 

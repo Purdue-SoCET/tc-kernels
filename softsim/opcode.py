@@ -63,18 +63,20 @@ class AluOp(Enum):
     SLL = auto()
     SRL = auto()
     SLT = auto()
+    SLTU = auto()
     SRA = auto()
 
 alu_funct = {
     AluOp.NOP: lambda a, b: a,
-    AluOp.ADD: lambda a, b: np.uint32(np.int32(a) + np.int32(b)),
-    AluOp.SUB: lambda a, b: np.uint32(np.int32(a) - np.int32(b)),
+    AluOp.ADD: lambda a, b: np.int32(np.int32(a) + np.int32(b)),
+    AluOp.SUB: lambda a, b: np.int32(np.int32(a) - np.int32(b)),
     AluOp.XOR: lambda a, b: a^b,
     AluOp.OR: lambda a,b: a|b,
     AluOp.AND: lambda a,b: a&b,
-    AluOp.SLL: lambda a,b: frombits(b*[0] + tobits([a], 32)[:32-b], True),
-    AluOp.SRL: lambda a,b: frombits(tobits([a], 32)[b:] + b*[0], True),
+    AluOp.SLL: lambda a,b: frombits(b*[0] + tobits([a], 32)[:32-b], False),
+    AluOp.SRL: lambda a,b: frombits(tobits([a], 32)[b:] + b*[0], False),
     AluOp.SLT: lambda a,b: a < b,
+    AluOp.SLTU: lambda a,b: np.int32(np.uint32(a) < np.uint32(b)),
     AluOp.SRA: lambda a,b: a >> b,
 }
 
@@ -88,7 +90,7 @@ rfunct = {
     0b1010000000: AluOp.SRL,
     0b1010100000: AluOp.SRA,
     0b0100000000: AluOp.SLT,
-    #0b0000000000: AluOp.SLTU, 
+    0b0110000000: AluOp.SLTU, 
 }
 ifunct = {
     0b000: AluOp.ADD,
@@ -99,6 +101,7 @@ ifunct = {
     0b001: AluOp.SLL, # imm = 0x00
     0b101: AluOp.SRL, # imm = 0x20
     # 0b101: AluOp.SRA, imm = 0x20
+    0b011: AluOp.SLTU,
     
 }
 

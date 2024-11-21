@@ -49,7 +49,7 @@ class Instruction:
             instr.use_imm = True
             instr.rd = frombits(bit_range(7,11))
             instr.rs1 = frombits(bit_range(15,19))
-            instr.imm = frombits(bit_range(20,31))
+            instr.imm = frombits(bit_range(20,31), signed = True)
             instr.aluop = ifunct[frombits(bit_range(12,14))]
             # if instr.aluop is AluOp.SRL and frombits(imm[5:11]) == 0x20: instr.aluop = AluOp.SRA
             return instr
@@ -120,7 +120,7 @@ class Core:
         with open(self.memfile, "rb") as f:
             self.memory = f.read()
             f.close()
-        self.scalar_regs = np.zeros(32, dtype=np.uint32)
+        self.scalar_regs = np.zeros(32, dtype=np.int32)
         self.matrix_regs = np.zeros((16, 4, 4),  dtype=np.float16)
         self.cr = cr
     
@@ -141,7 +141,7 @@ class Core:
         return self.memory[addr:addr+4]
 
     
-    def _run(self, cr: ControlRegister, max_iters=10000):
+    def _run(self, cr: ControlRegister, max_iters=100):
         # initialize registers
         self.pc = cr.start_address
         self.scalar_regs[2] = cr.stack_pointer
@@ -168,7 +168,7 @@ class Core:
                 self.pc += 4
                 continue
             if i.opcode is Opcode.LUI:
-                self.scalar_regs[i.rd] = (i.imm & 0x000FFFFF) << 12
+                self.scalar_regs[i.rd] = np.int32(np.uint32(i.imm) << 12)
                 self.pc += 4
             
             # Memory
