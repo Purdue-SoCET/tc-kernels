@@ -55,9 +55,10 @@ class Instruction:
             return instr
         if opcode is Opcode.SW:
             instr.use_imm = True
-            instr.imm = frombits(bit_range(7 ,11) + bit_range(25,31))
+            instr.imm = frombits(bit_range(7, 11) + bit_range(25,31))
             instr.rs1 = frombits(bit_range(15,19))
             instr.rs2 = frombits(bit_range(20,24))
+            instr.aluop = ifunct[frombits(bit_range(12,14))]
             return instr
         if opcode is Opcode.BTYPE:
             instr.use_imm = False
@@ -83,11 +84,16 @@ class Instruction:
             instr.rb = frombits(bit_range(20,23))
             instr.ra = frombits(bit_range(24,27))
             instr.rd = frombits(bit_range(28,31))
+            instr.aluop = AluOp.NOP
             return instr
-        if opcode is Opcode.STM:
-            assert False, "we don't have a format for this yet"
-        if opcode is Opcode.LDM:
-            assert False, "we don't have a format for this yet"
+        if opcode is Opcode.STM or opcode is Opcode.LDM:
+            instr.use_imm = True
+            instr.rd = frombits(bit_range(28, 31))
+            instr.rs1 = frombits(bit_range(23, 27))
+            instr.stride = frombits(bit_range(18, 22))
+            instr.imm = frombits(bit_range(7, 17))
+            instr.aluop = AluOp.ADD
+            return instr
         assert False, f"malformed instruction: f{bits}"
 
     def print_instr(self):
@@ -104,13 +110,19 @@ class Instruction:
         var = ", x"
         if self.opcode in {Opcode.STM, Opcode.LDM, Opcode.GEMM}: var = " m"
         if self.rd is not None:     st += var[1:] + str(self.rd)
-        if self.rs1 is not None:    st += var + str(self.rs1) 
+        if self.rs1 is not None and self.opcode not in {Opcode.SW, Opcode.LW}:
+            st += var + str(self.rs1) 
         if self.rs2 is not None:    st += var + str(self.rs2) 
         if self.ra is not None:     st += var + str(self.ra) 
         if self.rb is not None:     st += var + str(self.rb)
         if self.rc is not None:     st += var + str(self.rc) 
-        if self.imm is not None:    st += var[:-1] + str(self.imm)
+        if self.imm is not None:
+            if self.opcode not in {Opcode.SW, Opcode.LW}:
+                st += var[:-1] + str(self.imm)
+            else:
+                st += f", {self.imm}(x{self.rs1})"
         if self.opcode is Opcode.BTYPE: st = st[0:5] + ' ' + st[6:]
+        if self.opcode is Opcode.SW: st = st[0:6] + st[7:]
         print(st)
 
         
@@ -134,7 +146,7 @@ class Core:
     # read & write a word (byte addressed)
     def memwrite(self, addr: int, data):
         assert addr % 4 == 0, "tried to write to a misaligned address"
-        self.memory[addr:addr+4] = data
+        self.memory = self.memory[0:addr] + data + self.memory[addr+4:]
 
     def memread(self, addr: int) -> bytes:
         assert addr % 4 == 0, "tried to read from a misaligned address"
@@ -173,9 +185,12 @@ class Core:
             
             # Memory
             if i.opcode is Opcode.LW:
-                self.scalar_regs[i.rd] = self.memread(res)
+                value = np.int32(int.from_bytes(self.memread(res), byteorder='little'))
+                self.scalar_regs[i.rd] = value
+                self.pc += 4
             if i.opcode is Opcode.SW:
                 self.memwrite(res, self.scalar_regs[i.rs2])
+                self.pc += 4
             
             # Control Flow
             if i.opcode is Opcode.BTYPE:
@@ -194,6 +209,29 @@ class Core:
                 continue
 
             #Matrix
+            if i.opcode is Opcode.LDM:
+                nums = np.array((), dtype = np.float16)
+                content = self.memory[res:res+32]
+                for c in range(len(content) // 2):
+                    fl = np.frombuffer(content[2*c:2*c+2], dtype=np.float16)[0]
+                    nums = np.append(nums, fl)
+                nums = nums.reshape((4, 4))
+                # print(nums)
+                self.matrix_regs[i.rd] = nums
+                self.pc += 4
+
+            if i.opcode is Opcode.STM:
+                nums = self.matrix_regs[i.rd]
+                assert nums.shape == (4, 4), "Must be 4x4 matrix"
+                assert nums.dtype == np.float16, "Must use fp16"
+                nums.flatten()
+                out = None
+                for n in nums:
+                    if out is None: out = n.tobytes()
+                    else:           out += n.tobytes()
+                self.memory = self.memory[:res] + out + self.memory[res+32:]
+                self.pc += 4
+
             if i.opcode is Opcode.GEMM:
                 W = self.matrix_regs[i.ra]
                 I = self.matrix_regs[i.rb]
@@ -222,6 +260,14 @@ class Core:
             if np.allclose(np.zeros(np.shape(m)), m): m_str = "[0]" 
             else: m_str = "\n" + str(m)
             print(f"m{str(i).zfill(2)}| {m_str}")
+
+    def print_data_memory(self):
+        DATA_START = 0x200
+        i = DATA_START
+        while (i < len(self.memory)):
+            print(hex(i), np.frombuffer(self.memory[i:i+4], dtype=np.int32)[0])
+            i += 4
+        print()
         
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -234,4 +280,5 @@ if __name__ == "__main__":
     core.run()
     core.print_scalar_regs()
     # core.matrix_regs = np.random.random((16, 4, 4)) * 10
+    core.print_data_memory()
     core.print_matrix_regs()
