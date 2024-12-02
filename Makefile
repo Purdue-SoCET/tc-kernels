@@ -1,7 +1,7 @@
 PYTHON := python3
 ASSEMBLER := assembler.py
-INPUT := kernels/fib.S
-OUTPUT_BIN := output_fib.bin
+INPUT := kernels/mem.S
+OUTPUT_BIN := output_mem.bin
 
 all: run
 
@@ -12,7 +12,7 @@ bin:
 	@echo "Generated binary output: $(OUTPUT_BIN)"
 
 clean:
-	rm -f $(OUTPUT_BIN)
+	rm -f *.bin
 	@echo "Cleaned generated files."
 
 # Test output (optional: add specific test commands here)

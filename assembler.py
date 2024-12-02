@@ -23,16 +23,31 @@ register_map = {
     "m10": 10, "m11": 11, "m12": 12, "m13": 13, "m14": 14, "m15": 15
 }
 
+memory = {}
+
 def parse_file(filename):
+    data_section = []
     instructions = []
+    in_data_section = False
+
     with open(filename, 'r') as file:
         for line in file:
             #Removing comments and empty lines
             line = line.split('//')[0].strip()
             if not line:
                 continue
-            instructions.append(line)
-    return instructions
+            if line.startswith(".data"):
+                in_data_section = True
+                continue
+            elif line.startswith(".text"):
+                in_data_section = False
+                continue
+            if in_data_section:
+                data_section.append(line)
+            else:
+                instructions.append(line)
+            
+    return data_section, instructions
 
 #helper
 def get_register_binary(reg):
@@ -87,7 +102,7 @@ def encode_b_type(opcode, funct3, rs1, rs2, imm):
 
 def encode_u_type(opcode, rd, imm):
     rd_bin = get_register_binary(rd)
-    imm_bin = imm << 12
+    imm_bin = imm & 0xFFFFF000
     machine_code = (imm_bin) | (rd_bin << 7) | opcode
     return machine_code
 
@@ -126,18 +141,18 @@ def handle_instruction(instruction, label_map, current_address):
     if instr in ["halt"]:
         return [0xFFFFFFFF]
     #pseudo instr
-    if instr in ["push, pop, li, nop, mov.i"] :
-        pseudo_expansion = handle_pseudo_instruction(instruction)
-        if len(pseudo_expansion) == 1 and isinstance(pseudo_expansion[0], int):
-            return [pseudo_expansion[0]]
-
-        elif len(pseudo_expansion) > 1 or pseudo_expansion[0] != instruction:
-        # If it was expanded, handle each real instruction from the expansion
-            machine_codes = []
-            for instr in pseudo_expansion:
-                machine_codes.extend(handle_instruction(instr, label_map, current_address))
+    if instr in ["push", "pop", "li", "nop", "mov.i"] :
+        pseudo_expansion = handle_pseudo_instruction(instruction, label_map)
+        print(f"Expanded '{instruction}' to: {pseudo_expansion}")
+        machine_codes = []
+        for expanded_instr in pseudo_expansion:
+            if isinstance(expanded_instr, int):
+                machine_codes.append(expanded_instr)
+                print(f"Machine code: {expanded_instr}")
+            else:
+                machine_codes.extend(handle_instruction(expanded_instr, label_map, current_address))
                 current_address += 1
-            return machine_codes
+        return machine_codes
         
     if instr in ["add.i", "sub.i", "xor.i", "or.i", "and.i", "sll.i", "srl.i", "sra.i", "slt.i", "sltu.i", "mul.i", "mov.i"]:
         rd, rs1, rs2 = parts[1].strip(','), parts[2].strip(','), parts[3]
@@ -215,6 +230,7 @@ def handle_instruction(instruction, label_map, current_address):
         rd, ra, rb, rc = parts[1].strip(','), parts[2].strip(','), parts[3].strip(','), parts[4]
         return [encode_mm_type(opcode_map[instr], rd, ra, rb, rc)]
 
+    print(f"Unrecognized instruction: {instruction}")
     return [0]
 
 def create_label_map(instructions: List[str]) -> Tuple[List[str], Dict[str, int]]:
@@ -237,18 +253,41 @@ def create_label_map(instructions: List[str]) -> Tuple[List[str], Dict[str, int]
 
     return mem_mapped_instructions, label_map
 
+def process_data_section(data_section, start_address, label_map):
+    memory = {}
+    current_address = start_address
+
+    for line in data_section:
+        if ':' in line:
+            label, value = line.split(':')
+            label = label.strip()
+            value = int(value.strip(), 0)
+            label_map[label] = current_address
+            memory[current_address] = value
+            current_address += 4
+
+    return memory
+
 def calculate_offset(label_map: Dict[str, int], label: str, current_address: int) -> int:
     if label in label_map:
         return label_map[label] - current_address - 1
     else:
         raise ValueError(f"Label '{label}' not found in label map.")
 
-def handle_pseudo_instruction(instr: str) -> List[int]:
+def handle_pseudo_instruction(instr: str, label_map: Dict[str, int]) -> List[int]:
     parts = instr.split()
     pseudo = parts[0]
 
     if pseudo == "li":
-        rd, imm = parts[1].strip(','), int(parts[2], 0)
+        rd, operand = parts[1].strip(','), parts[2].strip(',')
+
+        if operand.isdigit() or (operand.startswith('-') and operand[1:].isdigit()):
+            imm = int(operand, 0)
+        elif operand in label_map:
+            imm = label_map[operand]
+        else:
+            raise ValueError(f"Invalid operand '{operand}' for `li` (not a valid immediate or label)")
+
         if -2048 <= imm <= 2047:
             return [f"addi.i {rd}, x0, {imm}"]
         else:
@@ -279,21 +318,28 @@ def assemble_instructions(instructions, label_map: Dict[int, str]):
             
     return machine_codes
 
-def write_machine_code(filename, machine_codes):
+def write_machine_code(filename, machine_codes, mem_data):
     with open(filename, 'wb') as f:
         for code in machine_codes:
             f.write(struct.pack('<I', code)) #because it needs to be raw bytes and not integers
+        for address, value in sorted(mem_data.items()):
+            f.write(struct.pack('<I', value))
 
 def assemble_file(input_file, output_file):
-    instructions = parse_file(input_file)
+    data_section, instructions = parse_file(input_file)
     # clean out aesthetic lines
     # instructions = [i for i in instructions if any(i.find(op) >= 0 for op in opcode_map) or ":" in i]
     # instructions = [i[:i.find("//")] if i.find("//") >= 0 else i for i in instructions]
 
+    instruction_size = len(instructions) * 4  # Each instruction is 4 bytes
+    data_start_address = 0x0 + instruction_size
+
+    #mem_data = process_data_section(data_section, data_start_address)
     # assemble instructions
     mem_mapped_instr, label_map = create_label_map(instructions)
+    mem_data = process_data_section(data_section, data_start_address, label_map)
     machine_codes = assemble_instructions(mem_mapped_instr, label_map)
-    write_machine_code(output_file, machine_codes)
+    write_machine_code(output_file, machine_codes, mem_data)
     print(f"Machine code written to {output_file}.")
 
 if __name__ == "__main__":

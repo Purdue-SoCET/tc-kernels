@@ -34,7 +34,11 @@ class Instruction:
             return bits[a: b + 1]
 
         # print("Bits: ", bits)
-        opcode = opcodes[frombits(bit_range(0,6))]
+        opcode_bits = frombits(bit_range(0,6))
+        print(opcode_bits)
+        if opcode_bits == 0b0000000:
+            print("label")
+        opcode = opcodes[opcode_bits]
         instr = Instruction(opcode)
         if opcode is Opcode.HALT:
             return instr
